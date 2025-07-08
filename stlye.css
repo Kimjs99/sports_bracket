@@ -1,0 +1,68 @@
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* 토너먼트 대진표 연결선 스타일 */
+.match-connector {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+.match-connector::after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    height: 2px;
+    background-color: #9ca3af;
+    right: 0;
+}
+.match-wrapper:not(:last-child) .match-connector::before {
+    content: '';
+    position: absolute;
+    height: calc(100% + 2rem);
+    width: 2px;
+    background-color: #9ca3af;
+    right: calc(50% - 1px);
+    top: 50%;
+}
+.round:not(:first-child) .match-item {
+    position: relative;
+}
+.round:not(:first-child) .match-item::before {
+    content: '';
+    position: absolute;
+    width: 2rem;
+    height: 2px;
+    background-color: #9ca3af;
+    left: -2rem;
+    top: 50%;
+}
+
+/* 점수 입력칸 스타일 */
+.team-input {
+    width: 80px;
+}
+
+/* 챔피언 배너 스타일 */
+#champion-section {
+    background: linear-gradient(45deg, #FFD700, #FF8C00);
+}
+
+/* 챔피언 축하 효과 스타일 */
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #f00;
+    opacity: 0.9;
+    border-radius: 50%;
+    animation: fall 4s linear infinite;
+    z-index: 0;
+}
+@keyframes fall {
+    to {
+        transform: translateY(120vh) rotate(720deg);
+        opacity: 0;
+    }
+}
