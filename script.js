@@ -1,16 +1,13 @@
 // =================================================================
 // 1. FIREBASE & APP INITIALIZATION
 // =================================================================
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteDoc, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO_KEY", authDomain: "DEMO.firebaseapp.com", projectId: "DEMO" };
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-sports-bracket-app';
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+// Initialize Firebase using the compat libraries
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
 
 // =================================================================
 // 2. GLOBAL VARIABLES & STATE MANAGEMENT
@@ -72,7 +69,7 @@ function showConfirm(title, message, callback) {
 }
 confirmOk.addEventListener('click', () => { if (confirmCallback) confirmCallback(); confirmModal.classList.add('hidden'); });
 confirmCancel.addEventListener('click', () => confirmModal.classList.add('hidden'));
-
+        
 const showTournamentListScreen = () => {
     tournamentSelectionSection.classList.remove('hidden');
     setupSection.classList.add('hidden');
@@ -95,11 +92,11 @@ const showOutputSection = () => {
 // =================================================================
 // 5. AUTHENTICATION & DATA INITIALIZATION
 // =================================================================
-onAuthStateChanged(auth, async (user) => {
+auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUserId = user.uid;
         userIdSpan.textContent = currentUserId;
-        dbCollectionRef = collection(db, "artifacts", appId, "users", currentUserId, "tournaments");
+        dbCollectionRef = db.collection("artifacts").doc(appId).collection("users").doc(currentUserId).collection("tournaments");
         await loadTournamentList();
         showTournamentListScreen();
     }
@@ -107,15 +104,15 @@ onAuthStateChanged(auth, async (user) => {
 
 async function initializeAuth() {
     try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-        else { await signInAnonymously(auth); }
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await auth.signInWithCustomToken(__initial_auth_token); } 
+        else { await auth.signInAnonymously(); }
     } catch (error) {
         console.error("Auth failed, falling back to anonymous:", error);
-        try { await signInAnonymously(auth); } 
+        try { await auth.signInAnonymously(); } 
         catch (anonError) { console.error("Anonymous sign-in also failed:", anonError); showMessage("인증 오류", "사용자 인증에 실패했습니다."); }
     }
 }
-
+        
 initializeAuth();
 
 // =================================================================
@@ -123,7 +120,7 @@ initializeAuth();
 // =================================================================
 async function loadTournamentList() {
     if (!dbCollectionRef) return;
-    const querySnapshot = await getDocs(dbCollectionRef);
+    const querySnapshot = await dbCollectionRef.get();
     tournamentList.innerHTML = '';
     if (querySnapshot.empty) {
         tournamentList.innerHTML = '<p class="text-gray-500">생성된 대회가 없습니다.</p>';
@@ -141,10 +138,10 @@ async function loadTournamentList() {
 
 function loadTournament(tournamentId) {
     currentTournamentId = tournamentId;
-    const dbRef = doc(dbCollectionRef, tournamentId);
+    const dbRef = dbCollectionRef.doc(tournamentId);
     if (currentTournamentUnsubscribe) currentTournamentUnsubscribe();
-    currentTournamentUnsubscribe = onSnapshot(dbRef, (docSnap) => {
-        if (docSnap.exists()) {
+    currentTournamentUnsubscribe = dbRef.onSnapshot((docSnap) => {
+        if (docSnap.exists) {
             currentData = docSnap.data();
             loadedTournamentName.textContent = currentData.name;
             render(currentData);
@@ -173,7 +170,7 @@ async function createTournament() {
     const newTournamentData = { name, teams, format, schedule, startDate, endDate, results: {}, createdAt: new Date().toISOString() };
 
     try {
-        const docRef = await addDoc(dbCollectionRef, newTournamentData);
+        const docRef = await dbCollectionRef.add(newTournamentData);
         await loadTournamentList();
         loadTournament(docRef.id);
     } catch (error) { showMessage("저장 오류", "대회 생성 중 오류 발생: " + error.message); }
@@ -200,7 +197,7 @@ saveImageButton.addEventListener('click', () => {
 deleteTournamentButton.addEventListener('click', async () => {
     if (!currentTournamentId) return;
     showConfirm("대회 삭제", "정말로 이 대회를 삭제하시겠습니까?", async () => {
-        await deleteDoc(doc(dbCollectionRef, currentTournamentId));
+        await dbCollectionRef.doc(currentTournamentId).delete();
         await loadTournamentList();
         showTournamentListScreen();
         showMessage("삭제 완료", "대회가 삭제되었습니다.");
@@ -316,8 +313,8 @@ async function handleScoreChange(event) {
         }
     }
     try {
-        const dbRef = doc(dbCollectionRef, currentTournamentId);
-        await updateDoc(dbRef, { schedule: newData.schedule, results: newData.results });
+        const dbRef = dbCollectionRef.doc(currentTournamentId);
+        await dbRef.update({ schedule: newData.schedule, results: newData.results });
     } catch(e) { showMessage("업데이트 오류", "점수 업데이트 중 오류가 발생했습니다."); }
 }
 
